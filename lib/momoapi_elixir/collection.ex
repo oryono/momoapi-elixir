@@ -1,12 +1,21 @@
 defmodule Collection do
   use GenServer
-  alias Client
 
   @base_url Application.get_env(:momoapi_elixir, :base_url)
   @party_types ["msisdn", "email", "party_code"]
 
-  def start_link(%{user_id: _user_id, primary_key: _primary_key, api_key: _api_key} = options) do
-    GenServer.start_link(__MODULE__, options, name: :collections)
+
+  defmodule Option do
+    @base_url_o Application.get_env(:momoapi_elixir, :base_url)
+    defstruct user_id: nil, primary_key: nil, api_key: nil, call_back_url: nil, base_url: @base_url_o
+  end
+
+  def start_link(%{api_key: api_key, primary_key: primary_key, user_id: user_id}) do
+    GenServer.start_link(
+      __MODULE__,
+      %Option{api_key: api_key, primary_key: primary_key, user_id: user_id},
+      name: :collections
+    )
   end
 
   def init(state) do
@@ -21,6 +30,21 @@ defmodule Collection do
   def set_token do
     GenServer.cast(:collections, :set_token)
   end
+
+  @doc """
+  %{
+      amount: "50",
+      currency: "EUR",
+      externalId: "123456",
+      payer: %{
+        partyIdType: "MSISDN",
+        partyId: "256784275529"
+      },
+      payerMessage: "testing",
+      payeeNote: "hello"
+    }
+  """
+
 
   def request_to_pay(
         %{
@@ -46,11 +70,6 @@ defmodule Collection do
     GenServer.call(:collections, {:get_transaction_status, reference_id})
   end
 
-
-  def get_balance do
-    GenServer.call(:collections, :get_balance)
-  end
-
   def get_party_status(id, type) when type in @party_types do
     GenServer.call(:collections, {:get_party_status, id, type})
   end
@@ -72,7 +91,7 @@ defmodule Collection do
     body_encoded = Poison.encode!(body)
 
     case HTTPoison.post(@base_url <> "/collection/v1_0/requesttopay", body_encoded, headers) do
-      {:ok, %HTTPoison.Response{status_code: 202, body: body}} -> {:reply, {:ok, reference_id}, state}
+      {:ok, %HTTPoison.Response{status_code: 202, body: _body}} -> {:reply, {:ok, reference_id}, state}
     end
 
   end
@@ -84,7 +103,8 @@ defmodule Collection do
       {"X-Target-Environment", "sandbox"}
     ]
     case HTTPoison.get(@base_url <> "/collection/v1_0/requesttopay/#{reference_id}", headers) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} -> {:reply, {:ok, Map.get(Poison.decode!(body), "status")}, state}
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        {:reply, {:ok, Map.get(Poison.decode!(body), "status")}, state}
     end
   end
 

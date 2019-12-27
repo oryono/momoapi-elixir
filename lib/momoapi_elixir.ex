@@ -1,18 +1,7 @@
 defmodule MomoapiElixir do
-  @moduledoc """
-  Documentation for MomoapiElixir.
-  """
+  use Application
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> MomoapiElixir.hello()
-      :world
-
-  """
-  def hello do
-    :world
+  def start(_type, _args) do
+#    MomoapiElixir.Supervisor.start_link()
   end
 end
