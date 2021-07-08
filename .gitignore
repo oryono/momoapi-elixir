@@ -26,3 +26,6 @@ momoapi_elixir-*.tar
 
 momoapi_elixir.iml
 
+.elixir_ls
+
+config

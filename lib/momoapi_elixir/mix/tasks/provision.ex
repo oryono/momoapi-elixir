@@ -1,7 +1,6 @@
 defmodule Mix.Tasks.Provision do
   use Mix.Task
 
-#  @reference_id UUID.uuid4()
   @base_url "https://sandbox.momodeveloper.mtn.com"
 
   @shortdoc "Creates the user id and user api key."
