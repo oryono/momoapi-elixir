@@ -8,6 +8,19 @@ defmodule MomoapiElixir.MixProject do
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      package: package(),
+      source_url: "https://github.com/oryono/momoapi-elixir",
+      homepage_url: "https://github.com/oryono/momoapi-elixir",
+      description: "MTN MoMo API client for Elixir"
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Patrick Oryono"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/oryono/momoapi-elixir"},
+      files: ~w(lib .formatter.exs mix.exs),
     ]
   end
 
@@ -24,6 +37,7 @@ defmodule MomoapiElixir.MixProject do
       {:uuid, "~> 1.1"},
       {:httpoison, "~> 1.8"},
       {:poison, "~> 3.1"},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false}
     ]
   end
 end
