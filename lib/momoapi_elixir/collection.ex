@@ -16,6 +16,26 @@ defmodule MomoapiElixir.Collection do
     end
   end
 
+  defmodule CollectionClient do
+    @behaviour MomoapiElixir.Behaviours.Collection
+    @client Application.get_env(:momoapi_elixir, :http_client)
+
+
+
+    def request_to_pay(body, headers) do
+      body = MomoapiElixir.Validator.validate_collections(body)
+      @client.post("/collection/v1_0/requesttopay", Poison.encode!(body), headers)
+    end
+
+    def get_balance(headers) do
+      @client.get("/collection/v1_0/account/balance", headers)
+    end
+
+    def get_transaction_status(reference_id, headers) do
+      @client.get("/collection/v1_0/requesttopay/#{reference_id}", headers)
+    end
+  end
+
   def start(%Option{} = opts) do
     GenServer.start(__MODULE__, opts, name: __MODULE__)
   end
@@ -28,7 +48,7 @@ defmodule MomoapiElixir.Collection do
   can be validated by using the GET /requesttopay/<resourceId>
 
   %{
-    amount: "50",
+    amount: "10",
     currency: "EUR",
     externalId: "123456",
     payer: %{
@@ -41,7 +61,6 @@ defmodule MomoapiElixir.Collection do
 
   """
   def request_to_pay(body) do
-    body = validate_collections(body)
     GenServer.call(__MODULE__, {:request_to_pay, body})
   end
 
@@ -69,14 +88,13 @@ defmodule MomoapiElixir.Collection do
 
   def handle_call({:request_to_pay, body}, _from, state) do
     reference_id = reference_id()
-    body_encoded = Poison.encode!(body)
     headers = [
       {"Authorization", "Bearer #{state.token}"},
       {"Ocp-Apim-Subscription-Key", state.subscription_key},
       {"X-Reference-Id", reference_id},
       {"X-Target-Environment", "sandbox"}
     ]
-    case Client.post("/collection/v1_0/requesttopay", body_encoded, headers) do
+    case CollectionClient.request_to_pay(body, headers) do
       {:ok, %HTTPoison.Response{status_code: 202, body: _body}} -> {:reply, reference_id, state}
       {:ok, %HTTPoison.Response{status_code: 500, body: body}} -> {:reply, {:error, %{code: 500, body: Poison.decode!(body)}}, state}
       {:ok, %HTTPoison.Response{status_code: 500, body: ""}} -> {:reply, {:error, %{code: 500, body: ""}}, state }
@@ -91,7 +109,7 @@ defmodule MomoapiElixir.Collection do
       {"Ocp-Apim-Subscription-Key", state.subscription_key},
       {"X-Target-Environment", "sandbox"}
     ]
-    case Client.get("/collection/v1_0/account/balance", headers) do
+    case CollectionClient.get_balance(headers) do
       {:ok, %HTTPoison.Response{body: body, status_code: 200}} -> {:reply, Poison.decode!(body), state}
       {:ok, %HTTPoison.Response{body: body, status_code: 404}} -> {:reply, {:error, Poison.decode!(body)}, state}
       {:ok, %HTTPoison.Response{body: body, status_code: 500}} -> {:reply, {:error, Poison.decode!(body)}, state}
@@ -105,7 +123,7 @@ defmodule MomoapiElixir.Collection do
       {"X-Target-Environment", "sandbox"},
       {"X-Reference-Id", reference_id},
     ]
-    case Client.get("/collection/v1_0/requesttopay/#{reference_id}", headers) do
+    case CollectionClient.get_transaction_status(reference_id, headers) do
       {:ok, %HTTPoison.Response{body: body, status_code: 200}} -> {:reply, Poison.decode!(body), state}
     end
 
@@ -115,33 +133,4 @@ defmodule MomoapiElixir.Collection do
     UUID.uuid4()
   end
 
-  defp validate_collections(
-        %{
-          amount: amount
-        }
-      ) when is_nil(amount) or amount == "" do
-    raise "Amount is required"
-  end
-
-  defp validate_collections(
-        %{
-          currency: currency
-        }
-      ) when is_nil(currency) or currency == "" do
-    raise "Currency is required"
-  end
-
-  defp validate_collections(
-        %{
-          payer: %{
-            partyId: party_id
-          },
-        }
-      ) when is_nil(party_id) or party_id == "" do
-    raise "Party id is required"
-  end
-
-  defp validate_collections(body) do
-    body
-  end
 end
