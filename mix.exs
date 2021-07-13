@@ -19,7 +19,9 @@ defmodule MomoapiElixir.MixProject do
     [
       maintainers: ["Patrick Oryono"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/oryono/momoapi-elixir"},
+      links: %{
+        "GitHub" => "https://github.com/oryono/momoapi-elixir"
+      },
       files: ~w(lib .formatter.exs mix.exs),
     ]
   end
@@ -37,6 +39,7 @@ defmodule MomoapiElixir.MixProject do
       {:uuid, "~> 1.1"},
       {:httpoison, "~> 1.8"},
       {:poison, "~> 3.1"},
+      {:mox, "~> 1.0", only: :test},
       {:ex_doc, "~> 0.24", only: :dev, runtime: false}
     ]
   end
