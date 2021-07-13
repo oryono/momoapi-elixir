@@ -28,4 +28,4 @@ momoapi_elixir.iml
 
 .elixir_ls
 
-/config
+.env
