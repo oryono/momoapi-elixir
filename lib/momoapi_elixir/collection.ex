@@ -6,21 +6,8 @@ defmodule MomoapiElixir.Collection do
     defstruct subscription_key: nil, user_id: nil, api_key: nil, callback_url: nil, target_environment: "sandbox"
   end
 
-  defmodule Client do
-    @moduledoc false
-    use HTTPoison.Base
-    @base_url Application.get_env(:momoapi_elixir, :base_url) || "https://sandbox.momodeveloper.mtn.com"
-
-    def process_request_url(url) do
-      @base_url <> url
-    end
-  end
-
   defmodule CollectionClient do
-    @behaviour MomoapiElixir.Behaviours.Collection
     @client Application.get_env(:momoapi_elixir, :http_client)
-
-
 
     def request_to_pay(body, headers) do
       body = MomoapiElixir.Validator.validate_collections(body)
