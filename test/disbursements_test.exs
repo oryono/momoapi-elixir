@@ -1,27 +1,27 @@
-defmodule MomoapiElixir.CollectionsTest do
+defmodule MomoapiElixir.DisbursementsTest do
   use ExUnit.Case, async: true
   import Mox
 
   # Make sure mocks are verified when the test exits
   setup :verify_on_exit!
 
-  describe "Collections" do
+  describe "Disbursements" do
     test "makes the correct request" do
       reference_id = UUID.uuid4()
       body = %{
         amount: "10",
         currency: "EUR",
-        externalId: "123456",
-        payer: %{
+        externalId: "947354",
+        payee: %{
           partyIdType: "MSISDN",
-          partyId: "46733123450"
+          partyId: "+256776564739"
         },
         payerMessage: "testing",
         payeeNote: "hello"
       }
       ClientMock
       |> expect(:post, fn _url, _body, _headers -> reference_id end)
-      response = MomoapiElixir.Collection.CollectionClient.request_to_pay(body, [])
+      response = MomoapiElixir.Disbursement.DisbursementClient.transfer(body, [])
       assert reference_id == response
     end
 
@@ -29,17 +29,17 @@ defmodule MomoapiElixir.CollectionsTest do
       body = %{
         amount: "",
         currency: "EUR",
-        externalId: "123456",
-        payer: %{
+        externalId: "947354",
+        payee: %{
           partyIdType: "MSISDN",
-          partyId: "46733123450"
+          partyId: "+256776564739"
         },
         payerMessage: "testing",
         payeeNote: "hello"
       }
 
       assert_raise RuntimeError, "Amount is required", fn ->
-        MomoapiElixir.Collection.CollectionClient.request_to_pay(body, [])
+        MomoapiElixir.Disbursement.DisbursementClient.transfer(body, [])
       end
     end
 
@@ -47,17 +47,17 @@ defmodule MomoapiElixir.CollectionsTest do
       body = %{
         amount: "10",
         currency: "",
-        externalId: "123456",
-        payer: %{
+        externalId: "947354",
+        payee: %{
           partyIdType: "MSISDN",
-          partyId: "46733123450"
+          partyId: "+256776564739"
         },
         payerMessage: "testing",
         payeeNote: "hello"
       }
 
       assert_raise RuntimeError, "Currency is required", fn ->
-        MomoapiElixir.Collection.CollectionClient.request_to_pay(body, [])
+        MomoapiElixir.Disbursement.DisbursementClient.transfer(body, [])
       end
     end
 
@@ -66,7 +66,7 @@ defmodule MomoapiElixir.CollectionsTest do
         amount: "10",
         currency: "EUR",
         externalId: "123456",
-        payer: %{
+        payee: %{
           partyIdType: "MSISDN",
           partyId: ""
         },
@@ -74,16 +74,17 @@ defmodule MomoapiElixir.CollectionsTest do
         payeeNote: "hello"
       }
       assert_raise RuntimeError, "Party id is required", fn ->
-        MomoapiElixir.Collection.CollectionClient.request_to_pay(body, [])
+        MomoapiElixir.Disbursement.DisbursementClient.transfer(body, [])
       end
     end
+
 
     test "raises an error when the party id type is missing" do
       body = %{
         amount: "10",
         currency: "EUR",
         externalId: "123456",
-        payer: %{
+        payee: %{
           partyIdType: "",
           partyId: "256784275529"
         },
@@ -91,13 +92,13 @@ defmodule MomoapiElixir.CollectionsTest do
         payeeNote: "hello"
       }
       assert_raise RuntimeError, "Party id type is required", fn ->
-        MomoapiElixir.Collection.CollectionClient.request_to_pay(body, [])
+        MomoapiElixir.Disbursement.DisbursementClient.transfer(body, [])
       end
     end
 
     test "raises an error when the body is empty" do
       assert_raise RuntimeError, "Body is empty", fn ->
-        MomoapiElixir.Collection.CollectionClient.request_to_pay(%{}, [])
+        MomoapiElixir.Disbursement.DisbursementClient.transfer(%{}, [])
       end
     end
 
@@ -105,7 +106,7 @@ defmodule MomoapiElixir.CollectionsTest do
       ClientMock
       |> expect(:get, fn _url, _headers -> %{"availableBalance" => "25", "currency" => "EUR"} end)
 
-      response = MomoapiElixir.Collection.CollectionClient.get_balance([])
+      response = MomoapiElixir.Disbursement.DisbursementClient.get_balance([])
       assert response == %{"availableBalance" => "25", "currency" => "EUR"}
     end
 
@@ -116,7 +117,7 @@ defmodule MomoapiElixir.CollectionsTest do
         "currency" => "EUR",
         "externalId" => "123456",
         "payeeNote" => "hello",
-        "payer" => %{
+        "payee" => %{
           "partyId" => "46733123450",
           "partyIdType" => "MSISDN"
         },
@@ -131,7 +132,7 @@ defmodule MomoapiElixir.CollectionsTest do
            fn _url, _headers -> expected_response
            end
          )
-      response = MomoapiElixir.Collection.CollectionClient.get_transaction_status(reference_id, [])
+      response = MomoapiElixir.Disbursement.DisbursementClient.get_transaction_status(reference_id, [])
       assert expected_response == response
     end
   end

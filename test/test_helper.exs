@@ -1,3 +1,3 @@
 ExUnit.start()
 
-Mox.defmock(CollectionMock, for: MomoapiElixir.Behaviours.Collection)
+Mox.defmock(ClientMock, for: MomoapiElixir.ClientBehaviour)

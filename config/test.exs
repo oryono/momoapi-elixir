@@ -1,3 +1,3 @@
 use Mix.Config
 
-config :momoapi_elixir, http_client: CollectionMock
+config :momoapi_elixir, http_client: ClientMock
