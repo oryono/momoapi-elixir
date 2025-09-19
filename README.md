@@ -1,180 +1,354 @@
-# Momoapi Elixir
-Power your Elixir applications with the momoapi_elixir library
+# MTN MoMo API Elixir
 
-### Installation
-Add the package to your project
+[![Hex.pm](https://img.shields.io/hexpm/v/momoapi_elixir.svg)](https://hex.pm/packages/momoapi_elixir)
+[![Documentation](https://img.shields.io/badge/documentation-hexdocs-blue.svg)](https://hexdocs.pm/momoapi_elixir)
+[![License](https://img.shields.io/hexpm/l/momoapi_elixir.svg)](LICENSE)
+[![Build Status](https://github.com/oryono/momoapi-elixir/workflows/CI/badge.svg)](https://github.com/oryono/momoapi-elixir/actions)
+
+A comprehensive Elixir client library for the **MTN Mobile Money (MoMo) API**. Easily integrate mobile money payments, transfers, and account management into your Elixir applications.
+
+## What is MTN Mobile Money?
+
+MTN Mobile Money is a digital financial service that allows users to store, send, and receive money using their mobile phones. This library provides a simple interface to:
+
+- 💳 **Collections** - Request payments from customers
+- 💸 **Disbursements** - Send money to recipients
+- 💰 **Account Management** - Check balances and transaction status
+- 🔒 **Secure** - Production-ready with proper authentication
+- 🌍 **Multi-environment** - Supports both sandbox and production
+
+## Quick Start
+
+### 1. Installation
+
+Add `momoapi_elixir` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:momoapi_elixir, "~> 0.1.0"}
+    {:momoapi_elixir, "~> 0.1.1"}
   ]
 end
 ```
 
-### Sandbox credentials
-Next, we need to get the User ID and Api key and to do this we shall need to use the Primary Key for the Product to which we are subscribed, as well as specify a host. We run the `mix provision` as below, with the subscription key as the first argument and callback host as second argument
+### 2. Get Sandbox Credentials
 
-```
-mix provision subscription_key callback
-```
+For testing, generate sandbox credentials using the built-in Mix task:
 
-If all goes well, it will print the credentials on the terminal as shown below
-```
-Your user id is 8bf4101b-ee3a-4eb1-968d-73dfc94e4011 and your API key is 6d18ef492b364d52974d1e0ae5319a40
-
+```bash
+mix provision YOUR_SUBSCRIPTION_KEY https://your-callback-url.com
 ```
 
-### Configuration
+This will output your sandbox `user_id` and `api_key`.
 
-The library supports multiple ways to configure your MTN MoMo API credentials:
+### 3. Configure Your Application
 
-#### Option 1: Environment Variables (Recommended for Production)
-
-Set these environment variables:
+#### Option 1: Environment Variables (Recommended)
 
 ```bash
 export MOMO_SUBSCRIPTION_KEY="your_subscription_key"
 export MOMO_USER_ID="your_user_id"
 export MOMO_API_KEY="your_api_key"
-export MOMO_TARGET_ENVIRONMENT="production"  # or "sandbox"
+export MOMO_TARGET_ENVIRONMENT="sandbox"  # or "production"
 ```
 
-Then use in your code:
+#### Option 2: Application Configuration
 
 ```elixir
-# Automatically loads from environment variables
-{:ok, config} = MomoapiElixir.Config.from_env()
-
-# Use with Collections API
-{:ok, reference_id} = MomoapiElixir.Collections.request_to_pay(config, payment_body)
-```
-
-#### Option 2: Manual Configuration
-
-```elixir
-# Create configuration manually
-config = %{
+# config/config.exs
+config :momoapi_elixir,
   subscription_key: "your_subscription_key",
   user_id: "your_user_id",
   api_key: "your_api_key",
-  target_environment: "sandbox"  # or "production"
-}
-
-# Use with Collections API
-{:ok, reference_id} = MomoapiElixir.Collections.request_to_pay(config, payment_body)
+  target_environment: "sandbox"
 ```
 
-### Collections
+### 4. Make Your First Request
 
-#### Functions
-- `request_to_pay(body)` This operation is used to request a payment from a consumer (Payer). The payer will be asked to authorize the payment. The transaction is executed once the payer has authorized the payment. The transaction will be in status PENDING until it is authorized or declined by the payer, or it is timed out by the system. Status of the transaction can be validated by using get_transaction_status
-
-- `get_transaction_status(reference_id)` Retrieve transaction information using the reference_id returned by request_to_pay. You can invoke it at intervals until the transaction fails or succeeds.
-
-- `get_balance` Get the balance of the account.
-
-#### Sample Code
 ```elixir
-defmodule MomoTest.Deposit do
-  alias MomoapiElixir.Collection
-  alias MomoapiElixir.Collection.Option
+# Load configuration
+{:ok, config} = MomoapiElixir.Config.from_env()
 
-  def initiate do
-    config = %Option{
-      subscription_key: "some_subscription_key",
-      user_id: "some_user_id",
-      api_key: "some_api_key"
-    }
-    Collection.start(config)
-  end
+# Request a payment
+payment = %{
+  amount: "1000",
+  currency: "UGX",
+  externalId: "payment_#{System.system_time()}",
+  payer: %{
+    partyIdType: "MSISDN",
+    partyId: "256784123456"
+  },
+  payerMessage: "Payment for goods",
+  payeeNote: "Thank you for your business"
+}
 
-  def test_collections do
-    body =   %{
-      amount: "50",
-      currency: "EUR",
-      externalId: "123456",
-      payer: %{
-        partyIdType: "MSISDN",
-        partyId: "46733123450"
-      },
-      payerMessage: "testing",
-      payeeNote: "hello"
-    }
-    Collection.request_to_pay(body)
-  end
-
-  def test_get_transaction_status(reference_id) do
-    Collection.get_transaction_status(reference_id)
-  end
-
-  def test_get_balance() do
-    Collection.get_balance
-  end
+case MomoapiElixir.Collections.request_to_pay(config, payment) do
+  {:ok, reference_id} ->
+    IO.puts("Payment initiated! Reference ID: #{reference_id}")
+  {:error, reason} ->
+    IO.puts("Payment failed: #{inspect(reason)}")
 end
 ```
 
-### Disbursements
-The Disbursements' api can be started with the following parameters. Note that the user id and api key for production are provided on the MTN OVA dashboard;
+## API Reference
 
-- `subscription_key`: Primary Key for the Collections product.
-- `user_id`: For sandbox, use the one generated with the `mix provision` command.
-- `api_key`: For sandbox, use the one generated with the `mix provision` command.
+### Collections API
+
+Request payments from customers.
+
+#### Request Payment
 
 ```elixir
-alias MomoapiElixir.Disbursement
-alias MomoapiElixir.Disbursement.Option
-# Create options. Subscription key, user id and api key are required
-options = %Option{
-  subscription_key: "some_key",
-  user_id: "some_user_id",
-  api_key: "some_api_key",
+payment = %{
+  amount: "5000",                    # Amount in string format
+  currency: "UGX",                   # ISO 4217 currency code
+  externalId: "unique_payment_id",   # Your unique transaction ID
+  payer: %{
+    partyIdType: "MSISDN",           # Phone number type
+    partyId: "256784123456"          # Customer's phone number
+  },
+  payerMessage: "Payment description",
+  payeeNote: "Internal note"
 }
 
-Disbursement.start(options)
+{:ok, reference_id} = MomoapiElixir.Collections.request_to_pay(config, payment)
 ```
 
-#### Functions
-- `transfer(body)` Used to transfer an amount from the owner’s account to a payee account. It returns a transaction id which can use to check the transaction status with the getTransaction function
+#### Check Transaction Status
 
-- `get_transaction_status(reference_id)` Retrieve transaction information using the reference_id returned by transfer. You can invoke it at intervals until the transaction fails or succeeds.
-
-- `get_balance` Get your account balance.
-
-#### Sample Code
 ```elixir
-defmodule MomoTest.Withdraw do
-  alias MomoapiElixir.Disbursement
-  alias MomoapiElixir.Disbursement.Option
+case MomoapiElixir.Collections.get_transaction_status(config, reference_id) do
+  {:ok, %{"status" => "SUCCESSFUL", "amount" => amount}} ->
+    IO.puts("Payment of #{amount} completed successfully!")
 
-  def initiate do
-    config = %Option{
-      subscription_key: "some_subscription_key",
-      user_id: "some_user_id",
-      api_key: "some_api_key"
-    }
-    Disbursement.start(config)
-  end
+  {:ok, %{"status" => "PENDING"}} ->
+    IO.puts("Payment is still processing...")
 
-  def test_disbursements do
-    body =   %{
-      amount: "50",
-      currency: "EUR",
-      externalId: "123456",
-      payee: %{
-        partyIdType: "MSISDN",
-        partyId: "46733123450"
-      },
-    }
-    Disbursement.transfer(body)
-  end
+  {:ok, %{"status" => "FAILED", "reason" => reason}} ->
+    IO.puts("Payment failed: #{reason}")
 
-  def test_get_transaction_status(reference_id) do
-    Disbursement.get_transaction_status(reference_id)
-  end
-
-  def test_get_balance() do
-    Disbursement.get_balance
-  end
+  {:error, reason} ->
+    IO.puts("Error checking status: #{inspect(reason)}")
 end
 ```
+
+#### Get Account Balance
+
+```elixir
+case MomoapiElixir.Collections.get_balance(config) do
+  {:ok, %{"availableBalance" => balance, "currency" => currency}} ->
+    IO.puts("Available balance: #{balance} #{currency}")
+  {:error, reason} ->
+    IO.puts("Error getting balance: #{inspect(reason)}")
+end
+```
+
+### Disbursements API
+
+Send money to recipients.
+
+#### Send Money
+
+```elixir
+transfer = %{
+  amount: "2500",
+  currency: "UGX",
+  externalId: "transfer_#{System.system_time()}",
+  payee: %{
+    partyIdType: "MSISDN",
+    partyId: "256784987654"
+  },
+  payerMessage: "Salary payment",
+  payeeNote: "Monthly salary"
+}
+
+case MomoapiElixir.Disbursements.transfer(config, transfer) do
+  {:ok, reference_id} ->
+    IO.puts("Transfer initiated! Reference ID: #{reference_id}")
+  {:error, reason} ->
+    IO.puts("Transfer failed: #{inspect(reason)}")
+end
+```
+
+#### Check Transfer Status
+
+```elixir
+{:ok, status} = MomoapiElixir.Disbursements.get_transaction_status(config, reference_id)
+IO.inspect(status)
+```
+
+#### Get Disbursements Balance
+
+```elixir
+{:ok, balance} = MomoapiElixir.Disbursements.get_balance(config)
+IO.inspect(balance)
+```
+
+## Configuration
+
+### Environment-Specific Settings
+
+The library automatically uses the correct API endpoints based on your environment:
+
+- **Sandbox**: `https://sandbox.momodeveloper.mtn.com`
+- **Production**: `https://momoapi.mtn.com`
+
+### Configuration Options
+
+```elixir
+# All available configuration options
+config = %{
+  subscription_key: "your_subscription_key",  # Required
+  user_id: "your_user_id",                   # Required
+  api_key: "your_api_key",                   # Required
+  target_environment: "sandbox"              # "sandbox" or "production"
+}
+```
+
+### Loading Configuration
+
+```elixir
+# From environment variables
+{:ok, config} = MomoapiElixir.Config.from_env()
+
+# From application config
+{:ok, config} = MomoapiElixir.Config.from_app_config()
+
+# Manual configuration
+{:ok, config} = MomoapiElixir.Config.new(
+  "subscription_key",
+  "user_id",
+  "api_key",
+  "sandbox"
+)
+```
+
+## Error Handling
+
+The library uses consistent error handling patterns:
+
+### Validation Errors
+
+```elixir
+invalid_payment = %{
+  amount: "0",           # Invalid: must be positive
+  currency: "INVALID",   # Invalid: must be 3-letter ISO code
+  # missing required fields
+}
+
+case MomoapiElixir.Collections.request_to_pay(config, invalid_payment) do
+  {:ok, reference_id} ->
+    # Success
+  {:error, validation_errors} when is_list(validation_errors) ->
+    # Multiple validation errors
+    Enum.each(validation_errors, fn error ->
+      IO.puts("Field #{error.field}: #{error.message}")
+    end)
+  {:error, reason} ->
+    # Other errors (network, auth, etc.)
+    IO.puts("Error: #{inspect(reason)}")
+end
+```
+
+### Common Error Types
+
+```elixir
+case MomoapiElixir.Collections.request_to_pay(config, payment) do
+  {:ok, reference_id} ->
+    # Success case
+
+  {:error, validation_errors} when is_list(validation_errors) ->
+    # Validation failed - fix your request data
+
+  {:error, {:auth_failed, status_code, body}} ->
+    # Authentication failed - check credentials
+
+  {:error, {:http_error, reason}} ->
+    # Network error - retry or check connectivity
+
+  {:error, %{status_code: 500}} ->
+    # Server error - try again later
+
+  {:error, reason} ->
+    # Other errors
+end
+```
+
+## Production Deployment
+
+### 1. Get Production Credentials
+
+1. Complete KYC requirements with MTN
+2. Get production credentials from MTN OVA dashboard
+3. Set environment variables:
+
+```bash
+export MOMO_SUBSCRIPTION_KEY="your_production_subscription_key"
+export MOMO_USER_ID="your_production_user_id"
+export MOMO_API_KEY="your_production_api_key"
+export MOMO_TARGET_ENVIRONMENT="production"
+```
+
+### 2. Deploy Your Application
+
+```bash
+MIX_ENV=prod mix release
+MIX_ENV=prod _build/prod/rel/your_app/bin/your_app start
+```
+
+The library will automatically use production endpoints when `target_environment` is set to `"production"`.
+
+## Testing
+
+This library includes comprehensive test coverage with proper mocking:
+
+```bash
+# Run tests
+mix test
+
+# Run with coverage
+mix test --cover
+
+# Run specific test file
+mix test test/collections_test.exs
+```
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
+
+```bash
+git clone https://github.com/oryono/momoapi-elixir.git
+cd momoapi-elixir
+mix deps.get
+mix test
+```
+
+### Reporting Issues
+
+Please report bugs and feature requests on our [GitHub Issues](https://github.com/oryono/momoapi-elixir/issues) page.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and changes.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- 📖 **Documentation**: [HexDocs](https://hexdocs.pm/momoapi_elixir)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/oryono/momoapi-elixir/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/oryono/momoapi-elixir/discussions)
+
+## Acknowledgments
+
+- MTN Group for providing the Mobile Money API
+- The Elixir community for excellent tooling and libraries
+
+---
+
+**Made with ❤️ for the Elixir community**
