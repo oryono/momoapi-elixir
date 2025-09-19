@@ -25,25 +25,47 @@ Your user id is 8bf4101b-ee3a-4eb1-968d-73dfc94e4011 and your API key is 6d18ef4
 
 ```
 
-### Collections
-The collections' api can be started with the following parameters. Note that the user Id and api key for production are provided on the MTN OVA dashboard;
+### Configuration
 
-- `subscription_key`: Primary Key for the Collections product. 
-- `user_id`: For sandbox, use the one generated with the `mix provision` command.
-- `api_key`: For sandbox, use the one generated with the `mix provision` command.
+The library supports multiple ways to configure your MTN MoMo API credentials:
+
+#### Option 1: Environment Variables (Recommended for Production)
+
+Set these environment variables:
+
+```bash
+export MOMO_SUBSCRIPTION_KEY="your_subscription_key"
+export MOMO_USER_ID="your_user_id"
+export MOMO_API_KEY="your_api_key"
+export MOMO_TARGET_ENVIRONMENT="production"  # or "sandbox"
+```
+
+Then use in your code:
 
 ```elixir
-alias MomoapiElixir.Collection
-# Create options. Subscription key, user id and api key are required
-options = %Collection.Option{
-  subscription_key: "some_key",
-  user_id: "some_user_id",
-  api_key: "some_api_key",
+# Automatically loads from environment variables
+{:ok, config} = MomoapiElixir.Config.from_env()
+
+# Use with Collections API
+{:ok, reference_id} = MomoapiElixir.Collections.request_to_pay(config, payment_body)
+```
+
+#### Option 2: Manual Configuration
+
+```elixir
+# Create configuration manually
+config = %{
+  subscription_key: "your_subscription_key",
+  user_id: "your_user_id",
+  api_key: "your_api_key",
+  target_environment: "sandbox"  # or "production"
 }
 
-Collection.start(options)
-
+# Use with Collections API
+{:ok, reference_id} = MomoapiElixir.Collections.request_to_pay(config, payment_body)
 ```
+
+### Collections
 
 #### Functions
 - `request_to_pay(body)` This operation is used to request a payment from a consumer (Payer). The payer will be asked to authorize the payment. The transaction is executed once the payer has authorized the payment. The transaction will be in status PENDING until it is authorized or declined by the payer, or it is timed out by the system. Status of the transaction can be validated by using get_transaction_status

@@ -1,3 +1,7 @@
-use Mix.Config
+import Config
 
-config :momoapi_elixir, http_client: ClientMock
+# Test-specific configuration
+config :momoapi_elixir,
+  http_client: ClientMock,
+  base_url: "https://sandbox.momodeveloper.mtn.com",
+  target_environment: "sandbox"
