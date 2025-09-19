@@ -18,7 +18,7 @@ We welcome contributions from everyone, whether you're fixing a bug, adding a fe
 
 ## Code of Conduct
 
-This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to patrick@oryono.dev.
+This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to patricken08@gmail.com.
 
 ## Getting Started
 
