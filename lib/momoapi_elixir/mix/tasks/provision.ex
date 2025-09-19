@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Provision do
   use Mix.Task
 
-  @base_url "https://sandbox.momodeveloper.mtn.com"
+  @base_url Application.compile_env(:momoapi_elixir, :base_url, "https://sandbox.momodeveloper.mtn.com")
 
   @shortdoc "Creates the user id and user api key."
   def run([subscription_key, webhook_host]) do
@@ -17,10 +17,10 @@ defmodule Mix.Tasks.Provision do
              {"Ocp-Apim-Subscription-Key", subscription_key}
            ]
          ) do
-      {:ok, %HTTPoison.Response{status_code: 409}} ->
+      {:ok, response} when response.status_code == 409 ->
         Mix.shell().info("Duplicate reference id")
 
-      {:ok, %HTTPoison.Response{status_code: 201}} ->
+      {:ok, response} when response.status_code == 201 ->
         case HTTPoison.post(
                @base_url <> "/v1_0/apiuser/#{reference_id}/apikey",
                [],
@@ -28,8 +28,8 @@ defmodule Mix.Tasks.Provision do
                  {"Ocp-Apim-Subscription-Key", subscription_key}
                ]
              ) do
-          {:ok, %HTTPoison.Response{status_code: 201, body: body}} ->
-            {:ok, %{"apiKey" => api_key}} = Poison.decode(body)
+          {:ok, key_response} when key_response.status_code == 201 ->
+            {:ok, %{"apiKey" => api_key}} = Poison.decode(key_response.body)
             Mix.shell().info("Your user id is #{reference_id} and your API key is #{api_key}")
         end
 

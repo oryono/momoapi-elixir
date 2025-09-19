@@ -1,5 +1,8 @@
-use Mix.Config
+import Config
 
-config :momoapi_elixir, http_client: MomoapiElixir.Client
+# Base configuration - environment-specific configs will override these
+config :momoapi_elixir,
+  http_client: MomoapiElixir.Client
 
-import_config "#{Mix.env()}.exs"
+# Import environment-specific configuration
+import_config "#{config_env()}.exs"

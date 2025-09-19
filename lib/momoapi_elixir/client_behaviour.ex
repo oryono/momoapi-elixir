@@ -1,5 +1,4 @@
 defmodule MomoapiElixir.ClientBehaviour do
-  @callback post(any, any, any) :: any
-  @callback post(any, any) :: any
-  @callback get(String.t(), any) :: any
+  @callback post(String.t(), map(), [{String.t(), String.t()}]) :: {:ok, map()} | {:error, term()}
+  @callback get(String.t(), [{String.t(), String.t()}]) :: {:ok, map()} | {:error, term()}
 end
