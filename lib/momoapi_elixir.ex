@@ -57,8 +57,11 @@ defmodule MomoapiElixir do
 
   ### Disbursements (Transfers to payees)
   - `transfer/2` - Transfer money to a payee
+  - `deposit/2` - Deposit money into an account
   - `get_transfer_status/2` - Check transfer transaction status
   - `get_disbursements_balance/1` - Get Disbursements account balance
+  - `get_disbursements_user_info/2` - Get basic user information for an account holder (defaults to MSISDN)
+  - `validate_disbursements_account_status/2` - Validate if account holder is active (defaults to MSISDN)
 
   ## Core Modules
 
@@ -505,5 +508,169 @@ defmodule MomoapiElixir do
   @spec validate_account_holder_status(config(), String.t()) :: {:ok, map()} | {:error, term()}
   def validate_account_holder_status(config, account_holder_id_type \\ "MSISDN", account_holder_id) do
     Collections.validate_account_holder_status(config, account_holder_id_type, account_holder_id)
+  end
+
+  @doc """
+  Deposit money into an account (Disbursements API).
+
+  This function allows you to deposit money directly into a payee's account
+  without requiring authorization from the payee. Returns a reference ID
+  that can be used to check the transaction status.
+
+  ## Parameters
+
+  - `config` - Configuration map with subscription_key, user_id, api_key, and target_environment
+  - `body` - Deposit request map with the following required fields:
+    - `amount` - Deposit amount as string (e.g., "100")
+    - `currency` - ISO 4217 currency code (e.g., "UGX")
+    - `externalId` - Your unique transaction identifier
+    - `payee` - Map with `partyIdType` ("MSISDN" or "EMAIL") and `partyId`
+    - `payerMessage` - Message for the deposit (optional)
+    - `payeeNote` - Note for the payee (optional)
+
+  ## Examples
+
+      config = %{
+        subscription_key: "your_key",
+        user_id: "your_user_id",
+        api_key: "your_api_key",
+        target_environment: "sandbox"
+      }
+
+      deposit = %{
+        amount: "1500",
+        currency: "UGX",
+        externalId: "deposit_789",
+        payee: %{
+          partyIdType: "MSISDN",
+          partyId: "256784123456"
+        },
+        payerMessage: "Bonus payment",
+        payeeNote: "Performance bonus"
+      }
+
+      case MomoapiElixir.deposit(config, deposit) do
+        {:ok, reference_id} ->
+          IO.puts("Deposit initiated: \#{reference_id}")
+        {:error, validation_errors} when is_list(validation_errors) ->
+          IO.puts("Validation failed: \#{inspect(validation_errors)}")
+        {:error, %{status_code: status, body: body}} ->
+          IO.puts("API error \#{status}: \#{inspect(body)}")
+        {:error, reason} ->
+          IO.puts("Deposit failed: \#{inspect(reason)}")
+      end
+
+  This is a convenience function that delegates to `MomoapiElixir.Disbursements.deposit/2`.
+  """
+  @spec deposit(config(), map()) :: {:ok, String.t()} | {:error, term()}
+  def deposit(config, body) do
+    Disbursements.deposit(config, body)
+  end
+
+  @doc """
+  Get basic user information for an account holder (Disbursements API).
+
+  Retrieve basic user information such as names for a specific account holder
+  using their party ID type and party ID via the Disbursements API.
+
+  ## Parameters
+
+  - `config` - Configuration map with subscription_key, user_id, api_key, and target_environment
+  - `account_holder_id_type` - Type of account identifier (defaults to "MSISDN")
+    - "MSISDN" - Mobile phone number
+    - "EMAIL" - Email address
+  - `account_holder_id` - The account identifier (phone number or email)
+
+  ## Examples
+
+      config = %{
+        subscription_key: "your_key",
+        user_id: "your_user_id",
+        api_key: "your_api_key",
+        target_environment: "sandbox"
+      }
+
+      # Using default MSISDN type (most common)
+      case MomoapiElixir.get_disbursements_user_info(config, "256784123456") do
+        {:ok, %{"given_name" => first_name, "family_name" => last_name}} ->
+          IO.puts("User: \#{first_name} \#{last_name}")
+        {:ok, user_info} ->
+          IO.puts("User info: \#{inspect(user_info)}")
+        {:error, %{status_code: 404}} ->
+          IO.puts("User not found")
+        {:error, %{status_code: status, body: body}} ->
+          IO.puts("Failed to get user info: \#{status} - \#{inspect(body)}")
+        {:error, reason} ->
+          IO.puts("Request failed: \#{inspect(reason)}")
+      end
+
+      # Explicitly specifying EMAIL type
+      case MomoapiElixir.get_disbursements_user_info(config, "EMAIL", "user@example.com") do
+        {:ok, user_info} ->
+          IO.puts("Email user info: \#{inspect(user_info)}")
+        {:error, reason} ->
+          IO.puts("Failed: \#{inspect(reason)}")
+      end
+
+  This is a convenience function that delegates to `MomoapiElixir.Disbursements.get_basic_user_info/2` or `/3`.
+  """
+  @spec get_disbursements_user_info(config(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  @spec get_disbursements_user_info(config(), String.t()) :: {:ok, map()} | {:error, term()}
+  def get_disbursements_user_info(config, account_holder_id_type \\ "MSISDN", account_holder_id) do
+    Disbursements.get_basic_user_info(config, account_holder_id_type, account_holder_id)
+  end
+
+  @doc """
+  Validate account holder status (Disbursements API).
+
+  Check if an account holder is active and able to receive transactions
+  via the Disbursements API. This is useful for validating account details
+  before initiating transfers or deposits.
+
+  ## Parameters
+
+  - `config` - Configuration map with subscription_key, user_id, api_key, and target_environment
+  - `account_holder_id_type` - Type of account identifier (defaults to "MSISDN")
+    - "MSISDN" - Mobile phone number
+    - "EMAIL" - Email address
+  - `account_holder_id` - The account identifier (phone number or email)
+
+  ## Examples
+
+      config = %{
+        subscription_key: "your_key",
+        user_id: "your_user_id",
+        api_key: "your_api_key",
+        target_environment: "sandbox"
+      }
+
+      # Using default MSISDN type (most common)
+      case MomoapiElixir.validate_disbursements_account_status(config, "256784123456") do
+        {:ok, %{"result" => true}} ->
+          IO.puts("Account is active and valid for disbursements")
+        {:ok, %{"result" => false}} ->
+          IO.puts("Account is inactive or invalid")
+        {:error, %{status_code: 404}} ->
+          IO.puts("Account not found")
+        {:error, %{status_code: status, body: body}} ->
+          IO.puts("Failed to validate account: \#{status} - \#{inspect(body)}")
+        {:error, reason} ->
+          IO.puts("Request failed: \#{inspect(reason)}")
+      end
+
+      # Explicitly specifying EMAIL type
+      case MomoapiElixir.validate_disbursements_account_status(config, "EMAIL", "user@example.com") do
+        {:ok, %{"result" => status}} ->
+          IO.puts("Email account status: \#{status}")
+        {:error, reason} ->
+          IO.puts("Failed: \#{inspect(reason)}")
+      end
+
+  This is a convenience function that delegates to `MomoapiElixir.Disbursements.validate_account_holder_status/2` or `/3`.
+  """
+  @spec validate_disbursements_account_status(config(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  @spec validate_disbursements_account_status(config(), String.t()) :: {:ok, map()} | {:error, term()}
+  def validate_disbursements_account_status(config, account_holder_id_type \\ "MSISDN", account_holder_id) do
+    Disbursements.validate_account_holder_status(config, account_holder_id_type, account_holder_id)
   end
 end

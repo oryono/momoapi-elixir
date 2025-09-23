@@ -11,11 +11,23 @@ A comprehensive Elixir client library for the **MTN Mobile Money (MoMo) API**. E
 
 MTN Mobile Money is a digital financial service that allows users to store, send, and receive money using their mobile phones. This library provides a simple interface to:
 
-- 💳 **Collections** - Request payments from customers
-- 💸 **Disbursements** - Send money to recipients
-- 💰 **Account Management** - Check balances and transaction status
+- 💳 **Collections** - Request payments and withdrawals from customers
+- 💸 **Disbursements** - Send money and make deposits to recipients
+- 👤 **Account Management** - Get user info, validate accounts, check balances
+- 🔍 **Transaction Tracking** - Monitor transaction status and history
 - 🔒 **Secure** - Production-ready with proper authentication
 - 🌍 **Multi-environment** - Supports both sandbox and production
+
+### ✨ New Features
+
+This library now supports the **complete MTN Mobile Money API** including:
+
+- **Withdrawal Requests** - Request money from customer accounts via Collections API
+- **Direct Deposits** - Make instant deposits via Disbursements API
+- **User Information** - Get basic user details for both Collections and Disbursements
+- **Account Validation** - Check if accounts are active before transactions
+- **Default Parameters** - MSISDN defaults for easier phone number handling
+- **Enhanced Error Handling** - Proper Elixir error tuples instead of exceptions
 
 ## Quick Start
 
@@ -94,7 +106,7 @@ end
 
 ### Collections API
 
-Request payments from customers.
+Request payments from customers, withdraw money, and manage account information.
 
 #### Request Payment
 
@@ -112,6 +124,26 @@ payment = %{
 }
 
 {:ok, reference_id} = MomoapiElixir.Collections.request_to_pay(config, payment)
+```
+
+#### Request Withdrawal
+
+Request withdrawal from a consumer's account (requires user authorization):
+
+```elixir
+withdrawal = %{
+  amount: "1000",
+  currency: "UGX",
+  externalId: "withdrawal_#{System.system_time()}",
+  payer: %{
+    partyIdType: "MSISDN",
+    partyId: "256784123456"
+  },
+  payerMessage: "Cash withdrawal",
+  payeeNote: "ATM withdrawal"
+}
+
+{:ok, reference_id} = MomoapiElixir.Collections.request_to_withdraw(config, withdrawal)
 ```
 
 #### Check Transaction Status
@@ -132,6 +164,40 @@ case MomoapiElixir.Collections.get_transaction_status(config, reference_id) do
 end
 ```
 
+#### Get User Information
+
+Get basic user information for account validation:
+
+```elixir
+# Using default MSISDN type
+case MomoapiElixir.Collections.get_basic_user_info(config, "256784123456") do
+  {:ok, %{"given_name" => first_name, "family_name" => last_name}} ->
+    IO.puts("User: #{first_name} #{last_name}")
+  {:error, %{status_code: 404}} ->
+    IO.puts("User not found")
+  {:error, reason} ->
+    IO.puts("Error: #{inspect(reason)}")
+end
+
+# Explicitly specify account type
+{:ok, user_info} = MomoapiElixir.Collections.get_basic_user_info(config, "EMAIL", "user@example.com")
+```
+
+#### Validate Account Status
+
+Check if an account holder is active before initiating transactions:
+
+```elixir
+case MomoapiElixir.Collections.validate_account_holder_status(config, "256784123456") do
+  {:ok, %{"result" => true}} ->
+    IO.puts("Account is active and ready for transactions")
+  {:ok, %{"result" => false}} ->
+    IO.puts("Account is inactive")
+  {:error, reason} ->
+    IO.puts("Validation failed: #{inspect(reason)}")
+end
+```
+
 #### Get Account Balance
 
 ```elixir
@@ -145,9 +211,11 @@ end
 
 ### Disbursements API
 
-Send money to recipients.
+Send money to recipients, make deposits, and manage account information.
 
-#### Send Money
+#### Transfer Money
+
+Send money to recipients (requires authorization from the recipient):
 
 ```elixir
 transfer = %{
@@ -170,18 +238,82 @@ case MomoapiElixir.Disbursements.transfer(config, transfer) do
 end
 ```
 
-#### Check Transfer Status
+#### Deposit Money
+
+Direct deposit into a recipient's account (no authorization required):
 
 ```elixir
-{:ok, status} = MomoapiElixir.Disbursements.get_transaction_status(config, reference_id)
-IO.inspect(status)
+deposit = %{
+  amount: "1500",
+  currency: "UGX",
+  externalId: "deposit_#{System.system_time()}",
+  payee: %{
+    partyIdType: "MSISDN",
+    partyId: "256784987654"
+  },
+  payerMessage: "Bonus payment",
+  payeeNote: "Performance bonus"
+}
+
+case MomoapiElixir.Disbursements.deposit(config, deposit) do
+  {:ok, reference_id} ->
+    IO.puts("Deposit completed! Reference ID: #{reference_id}")
+  {:error, reason} ->
+    IO.puts("Deposit failed: #{inspect(reason)}")
+end
+```
+
+#### Check Transaction Status
+
+```elixir
+case MomoapiElixir.Disbursements.get_transaction_status(config, reference_id) do
+  {:ok, %{"status" => "SUCCESSFUL", "amount" => amount}} ->
+    IO.puts("Transaction of #{amount} completed successfully!")
+  {:ok, %{"status" => "PENDING"}} ->
+    IO.puts("Transaction is still processing...")
+  {:error, reason} ->
+    IO.puts("Error checking status: #{inspect(reason)}")
+end
+```
+
+#### Get User Information (Disbursements)
+
+Get basic user information via the Disbursements API:
+
+```elixir
+# Using default MSISDN type
+case MomoapiElixir.Disbursements.get_basic_user_info(config, "256784987654") do
+  {:ok, %{"given_name" => first_name, "family_name" => last_name}} ->
+    IO.puts("Recipient: #{first_name} #{last_name}")
+  {:error, reason} ->
+    IO.puts("Error: #{inspect(reason)}")
+end
+```
+
+#### Validate Account Status (Disbursements)
+
+Check if a recipient account is active before making transfers:
+
+```elixir
+case MomoapiElixir.Disbursements.validate_account_holder_status(config, "256784987654") do
+  {:ok, %{"result" => true}} ->
+    IO.puts("Recipient account is active")
+  {:ok, %{"result" => false}} ->
+    IO.puts("Recipient account is inactive")
+  {:error, reason} ->
+    IO.puts("Validation failed: #{inspect(reason)}")
+end
 ```
 
 #### Get Disbursements Balance
 
 ```elixir
-{:ok, balance} = MomoapiElixir.Disbursements.get_balance(config)
-IO.inspect(balance)
+case MomoapiElixir.Disbursements.get_balance(config) do
+  {:ok, %{"availableBalance" => balance, "currency" => currency}} ->
+    IO.puts("Available balance: #{balance} #{currency}")
+  {:error, reason} ->
+    IO.puts("Error getting balance: #{inspect(reason)}")
+end
 ```
 
 ## Configuration
