@@ -163,9 +163,10 @@ defmodule MomoapiElixir.CollectionsTest do
 
       # Mock transaction status request
       ClientMock
-      |> expect(:get, fn "/collection/v1_0/requesttopay/" <> ^reference_id, headers ->
+      |> expect(:get, fn "/collection/v1_0/requesttopay/" <> id, headers ->
+        assert id == reference_id
         assert {"Authorization", "Bearer test_token"} in headers
-        assert {"X-Reference-Id", ^reference_id} in headers
+        assert {"X-Reference-Id", reference_id} in headers
         {:ok, %{status_code: 200, body: Poison.encode!(expected_transaction)}}
       end)
 

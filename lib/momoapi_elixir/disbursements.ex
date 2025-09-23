@@ -96,10 +96,11 @@ defmodule MomoapiElixir.Disbursements do
   end
 
   defp build_headers(token, config, reference_id \\ nil) do
+    target_env = Map.get(config, :target_environment, "sandbox")
     base_headers = [
       {"Authorization", "Bearer #{token}"},
-      {"Ocp-Apim-Subscription-Key", config.subscription_key},
-      {"X-Target-Environment", config.target_environment || "sandbox"}
+      {"Ocp-Apim-Subscription-Key", Map.get(config, :subscription_key)},
+      {"X-Target-Environment", target_env}
     ]
 
     case reference_id do
@@ -108,40 +109,28 @@ defmodule MomoapiElixir.Disbursements do
     end
   end
 
-  defp handle_transfer_response({:ok, %{status_code: 202}}, reference_id) do
+  defp handle_transfer_response(%{status_code: 202}, reference_id) do
     {:ok, reference_id}
   end
 
-  defp handle_transfer_response({:ok, %{status_code: status_code, body: body}}, _reference_id) do
+  defp handle_transfer_response(%{status_code: status_code, body: body}, _reference_id) do
     {:error, %{status_code: status_code, body: decode_body(body)}}
   end
 
-  defp handle_transfer_response({:error, reason}, _reference_id) do
-    {:error, reason}
-  end
-
-  defp handle_balance_response({:ok, %{status_code: 200, body: body}}) do
+  defp handle_balance_response(%{status_code: 200, body: body}) do
     {:ok, decode_body(body)}
   end
 
-  defp handle_balance_response({:ok, %{status_code: status_code, body: body}}) do
+  defp handle_balance_response(%{status_code: status_code, body: body}) do
     {:error, %{status_code: status_code, body: decode_body(body)}}
   end
 
-  defp handle_balance_response({:error, reason}) do
-    {:error, reason}
-  end
-
-  defp handle_transaction_response({:ok, %{status_code: 200, body: body}}) do
+  defp handle_transaction_response(%{status_code: 200, body: body}) do
     {:ok, decode_body(body)}
   end
 
-  defp handle_transaction_response({:ok, %{status_code: status_code, body: body}}) do
+  defp handle_transaction_response(%{status_code: status_code, body: body}) do
     {:error, %{status_code: status_code, body: decode_body(body)}}
-  end
-
-  defp handle_transaction_response({:error, reason}) do
-    {:error, reason}
   end
 
   defp decode_body(""), do: %{}

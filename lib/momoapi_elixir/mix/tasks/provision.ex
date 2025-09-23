@@ -39,11 +39,11 @@ defmodule Mix.Tasks.Provision do
   end
 
   def run([_subscription_key]) do
-    raise "One of the arguments has not been provided. Please provide subscription key for arg 1 and callback for arg 2"
+    Mix.shell().error("One of the arguments has not been provided. Please provide subscription key for arg 1 and callback for arg 2")
   end
 
   def run([]) do
-    raise "Both subscription_key and callback host are required"
+    Mix.shell().error("Both subscription_key and callback host are required")
   end
 
   defp reference_id do
