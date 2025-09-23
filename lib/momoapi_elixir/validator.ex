@@ -40,13 +40,13 @@ defmodule MomoapiElixir.Validator do
   end
 
   def validate_collections(body) do
-    body
-    |> validate_required_fields(:collections)
-    |> validate_amount()
-    |> validate_currency()
-    |> validate_external_id()
-    |> validate_payer()
-    |> validate_messages()
+    []
+    |> validate_required_fields(body, :collections)
+    |> validate_amount(body)
+    |> validate_currency(body)
+    |> validate_external_id(body)
+    |> validate_payer(body)
+    |> validate_messages(body)
     |> return_validation_result(body)
   end
 
@@ -70,26 +70,26 @@ defmodule MomoapiElixir.Validator do
   end
 
   def validate_disbursements(body) do
-    body
-    |> validate_required_fields(:disbursements)
-    |> validate_amount()
-    |> validate_currency()
-    |> validate_external_id()
-    |> validate_payee()
-    |> validate_messages()
+    []
+    |> validate_required_fields(body, :disbursements)
+    |> validate_amount(body)
+    |> validate_currency(body)
+    |> validate_external_id(body)
+    |> validate_payee(body)
+    |> validate_messages(body)
     |> return_validation_result(body)
   end
 
   # Private validation functions
 
-  defp validate_required_fields(body, :collections) do
+  defp validate_required_fields(errors, body, :collections) do
     required_fields = [:amount, :currency, :externalId, :payer]
-    validate_fields_present(body, required_fields, [])
+    validate_fields_present(body, required_fields, errors)
   end
 
-  defp validate_required_fields(body, :disbursements) do
+  defp validate_required_fields(errors, body, :disbursements) do
     required_fields = [:amount, :currency, :externalId, :payee]
-    validate_fields_present(body, required_fields, [])
+    validate_fields_present(body, required_fields, errors)
   end
 
   defp validate_fields_present(_body, [], errors), do: errors
@@ -109,10 +109,8 @@ defmodule MomoapiElixir.Validator do
     end
   end
 
-  defp validate_amount(errors) when is_list(errors), do: errors
-
-  defp validate_amount(body) do
-    case Map.get(body, :amount) do
+  defp validate_amount(errors, body) do
+    new_errors = case Map.get(body, :amount) do
       nil -> []
       "" -> []
       amount when is_binary(amount) ->
@@ -130,12 +128,11 @@ defmodule MomoapiElixir.Validator do
       amount ->
         [%{field: :amount, message: "Amount must be a string", value: amount}]
     end
+    new_errors ++ errors
   end
 
-  defp validate_currency(errors) when is_list(errors), do: errors
-
-  defp validate_currency(body) do
-    case Map.get(body, :currency) do
+  defp validate_currency(errors, body) do
+    new_errors = case Map.get(body, :currency) do
       nil -> []
       "" -> []
       currency when is_binary(currency) ->
@@ -147,41 +144,39 @@ defmodule MomoapiElixir.Validator do
       currency ->
         [%{field: :currency, message: "Currency must be a string", value: currency}]
     end
+    new_errors ++ errors
   end
 
-  defp validate_external_id(errors) when is_list(errors), do: errors
-
-  defp validate_external_id(body) do
-    case Map.get(body, :externalId) do
+  defp validate_external_id(errors, body) do
+    new_errors = case Map.get(body, :externalId) do
       nil -> []
       "" -> [%{field: :externalId, message: "External ID cannot be empty", value: ""}]
       external_id when is_binary(external_id) -> []
       external_id -> [%{field: :externalId, message: "External ID must be a string", value: external_id}]
     end
+    new_errors ++ errors
   end
 
-  defp validate_payer(errors) when is_list(errors), do: errors
-
-  defp validate_payer(body) do
-    case Map.get(body, :payer) do
+  defp validate_payer(errors, body) do
+    new_errors = case Map.get(body, :payer) do
       nil -> []
       payer when is_map(payer) ->
         validate_party(payer, :payer)
       payer ->
         [%{field: :payer, message: "Payer must be a map", value: payer}]
     end
+    new_errors ++ errors
   end
 
-  defp validate_payee(errors) when is_list(errors), do: errors
-
-  defp validate_payee(body) do
-    case Map.get(body, :payee) do
+  defp validate_payee(errors, body) do
+    new_errors = case Map.get(body, :payee) do
       nil -> []
       payee when is_map(payee) ->
         validate_party(payee, :payee)
       payee ->
         [%{field: :payee, message: "Payee must be a map", value: payee}]
     end
+    new_errors ++ errors
   end
 
   defp validate_party(party, party_type) do
@@ -225,24 +220,24 @@ defmodule MomoapiElixir.Validator do
     errors
   end
 
-  defp validate_messages(errors) when is_list(errors), do: errors
+  defp validate_messages(errors, body) do
+    new_errors = []
 
-  defp validate_messages(body) do
-    errors = []
-
-    errors = case Map.get(body, :payerMessage) do
-      nil -> errors
-      message when is_binary(message) and byte_size(message) <= 160 -> errors
-      message when is_binary(message) -> [%{field: :payerMessage, message: "Payer message cannot exceed 160 characters", value: message} | errors]
-      message -> [%{field: :payerMessage, message: "Payer message must be a string", value: message} | errors]
+    new_errors = case Map.get(body, :payerMessage) do
+      nil -> new_errors
+      message when is_binary(message) and byte_size(message) <= 160 -> new_errors
+      message when is_binary(message) -> [%{field: :payerMessage, message: "Payer message cannot exceed 160 characters", value: message} | new_errors]
+      message -> [%{field: :payerMessage, message: "Payer message must be a string", value: message} | new_errors]
     end
 
-    case Map.get(body, :payeeNote) do
-      nil -> errors
-      note when is_binary(note) and byte_size(note) <= 160 -> errors
-      note when is_binary(note) -> [%{field: :payeeNote, message: "Payee note cannot exceed 160 characters", value: note} | errors]
-      note -> [%{field: :payeeNote, message: "Payee note must be a string", value: note} | errors]
+    new_errors = case Map.get(body, :payeeNote) do
+      nil -> new_errors
+      note when is_binary(note) and byte_size(note) <= 160 -> new_errors
+      note when is_binary(note) -> [%{field: :payeeNote, message: "Payee note cannot exceed 160 characters", value: note} | new_errors]
+      note -> [%{field: :payeeNote, message: "Payee note must be a string", value: note} | new_errors]
     end
+
+    new_errors ++ errors
   end
 
   defp return_validation_result([], body), do: {:ok, body}
