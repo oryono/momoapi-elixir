@@ -49,8 +49,11 @@ defmodule MomoapiElixir do
 
   ### Collections (Payments from consumers)
   - `request_to_pay/2` - Request payment from a consumer
+  - `request_to_withdraw/2` - Request withdrawal from a consumer account
   - `get_payment_status/2` - Check payment transaction status
   - `get_collections_balance/1` - Get Collections account balance
+  - `get_basic_user_info/2` - Get basic user information for an account holder (defaults to MSISDN)
+  - `validate_account_holder_status/2` - Validate if account holder is active (defaults to MSISDN)
 
   ### Disbursements (Transfers to payees)
   - `transfer/2` - Transfer money to a payee
@@ -339,5 +342,168 @@ defmodule MomoapiElixir do
   @spec get_transfer_status(config(), String.t()) :: {:ok, map()} | {:error, term()}
   def get_transfer_status(config, reference_id) do
     Disbursements.get_transaction_status(config, reference_id)
+  end
+
+  @doc """
+  Request to withdraw money from a consumer account (Collections API).
+
+  This function allows you to request a withdrawal from a consumer's account.
+  The consumer will be asked to authorize the withdrawal. Returns a reference ID
+  that can be used to check the transaction status.
+
+  ## Parameters
+
+  - `config` - Configuration map with subscription_key, user_id, api_key, and target_environment
+  - `body` - Withdrawal request map with the following required fields:
+    - `amount` - Withdrawal amount as string (e.g., "100")
+    - `currency` - ISO 4217 currency code (e.g., "UGX")
+    - `externalId` - Your unique transaction identifier
+    - `payer` - Map with `partyIdType` ("MSISDN" or "EMAIL") and `partyId`
+    - `payerMessage` - Message shown to the payer (optional)
+    - `payeeNote` - Internal note for the payee (optional)
+
+  ## Examples
+
+      config = %{
+        subscription_key: "your_key",
+        user_id: "your_user_id",
+        api_key: "your_api_key",
+        target_environment: "sandbox"
+      }
+
+      withdrawal = %{
+        amount: "500",
+        currency: "UGX",
+        externalId: "withdraw_789",
+        payer: %{
+          partyIdType: "MSISDN",
+          partyId: "256784123456"
+        },
+        payerMessage: "Cash withdrawal",
+        payeeNote: "ATM withdrawal"
+      }
+
+      case MomoapiElixir.request_to_withdraw(config, withdrawal) do
+        {:ok, reference_id} ->
+          IO.puts("Withdrawal initiated: \#{reference_id}")
+        {:error, validation_errors} when is_list(validation_errors) ->
+          IO.puts("Validation failed: \#{inspect(validation_errors)}")
+        {:error, %{status_code: status, body: body}} ->
+          IO.puts("API error \#{status}: \#{inspect(body)}")
+        {:error, reason} ->
+          IO.puts("Withdrawal failed: \#{inspect(reason)}")
+      end
+
+  This is a convenience function that delegates to `MomoapiElixir.Collections.request_to_withdraw/2`.
+  """
+  @spec request_to_withdraw(config(), map()) :: {:ok, String.t()} | {:error, term()}
+  def request_to_withdraw(config, body) do
+    Collections.request_to_withdraw(config, body)
+  end
+
+  @doc """
+  Get basic user information for an account holder.
+
+  Retrieve basic user information such as names for a specific account holder
+  using their party ID type and party ID.
+
+  ## Parameters
+
+  - `config` - Configuration map with subscription_key, user_id, api_key, and target_environment
+  - `account_holder_id_type` - Type of account identifier (defaults to "MSISDN")
+    - "MSISDN" - Mobile phone number
+    - "EMAIL" - Email address
+  - `account_holder_id` - The account identifier (phone number or email)
+
+  ## Examples
+
+      config = %{
+        subscription_key: "your_key",
+        user_id: "your_user_id",
+        api_key: "your_api_key",
+        target_environment: "sandbox"
+      }
+
+      # Using default MSISDN type (most common)
+      case MomoapiElixir.get_basic_user_info(config, "256784123456") do
+        {:ok, %{"given_name" => first_name, "family_name" => last_name}} ->
+          IO.puts("User: \#{first_name} \#{last_name}")
+        {:ok, user_info} ->
+          IO.puts("User info: \#{inspect(user_info)}")
+        {:error, %{status_code: 404}} ->
+          IO.puts("User not found")
+        {:error, %{status_code: status, body: body}} ->
+          IO.puts("Failed to get user info: \#{status} - \#{inspect(body)}")
+        {:error, reason} ->
+          IO.puts("Request failed: \#{inspect(reason)}")
+      end
+
+      # Explicitly specifying EMAIL type
+      case MomoapiElixir.get_basic_user_info(config, "EMAIL", "user@example.com") do
+        {:ok, user_info} ->
+          IO.puts("Email user info: \#{inspect(user_info)}")
+        {:error, reason} ->
+          IO.puts("Failed: \#{inspect(reason)}")
+      end
+
+  This is a convenience function that delegates to `MomoapiElixir.Collections.get_basic_user_info/2` or `/3`.
+  """
+  @spec get_basic_user_info(config(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  @spec get_basic_user_info(config(), String.t()) :: {:ok, map()} | {:error, term()}
+  def get_basic_user_info(config, account_holder_id_type \\ "MSISDN", account_holder_id) do
+    Collections.get_basic_user_info(config, account_holder_id_type, account_holder_id)
+  end
+
+  @doc """
+  Validate account holder status.
+
+  Check if an account holder is active and able to receive transactions.
+  This is useful for validating account details before initiating transactions.
+
+  ## Parameters
+
+  - `config` - Configuration map with subscription_key, user_id, api_key, and target_environment
+  - `account_holder_id_type` - Type of account identifier (defaults to "MSISDN")
+    - "MSISDN" - Mobile phone number
+    - "EMAIL" - Email address
+  - `account_holder_id` - The account identifier (phone number or email)
+
+  ## Examples
+
+      config = %{
+        subscription_key: "your_key",
+        user_id: "your_user_id",
+        api_key: "your_api_key",
+        target_environment: "sandbox"
+      }
+
+      # Using default MSISDN type (most common)
+      case MomoapiElixir.validate_account_holder_status(config, "256784123456") do
+        {:ok, %{"result" => true}} ->
+          IO.puts("Account is active and valid")
+        {:ok, %{"result" => false}} ->
+          IO.puts("Account is inactive or invalid")
+        {:error, %{status_code: 404}} ->
+          IO.puts("Account not found")
+        {:error, %{status_code: status, body: body}} ->
+          IO.puts("Failed to validate account: \#{status} - \#{inspect(body)}")
+        {:error, reason} ->
+          IO.puts("Request failed: \#{inspect(reason)}")
+      end
+
+      # Explicitly specifying EMAIL type
+      case MomoapiElixir.validate_account_holder_status(config, "EMAIL", "user@example.com") do
+        {:ok, %{"result" => status}} ->
+          IO.puts("Email account status: \#{status}")
+        {:error, reason} ->
+          IO.puts("Failed: \#{inspect(reason)}")
+      end
+
+  This is a convenience function that delegates to `MomoapiElixir.Collections.validate_account_holder_status/2` or `/3`.
+  """
+  @spec validate_account_holder_status(config(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  @spec validate_account_holder_status(config(), String.t()) :: {:ok, map()} | {:error, term()}
+  def validate_account_holder_status(config, account_holder_id_type \\ "MSISDN", account_holder_id) do
+    Collections.validate_account_holder_status(config, account_holder_id_type, account_holder_id)
   end
 end
