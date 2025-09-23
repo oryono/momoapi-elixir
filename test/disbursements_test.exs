@@ -165,9 +165,10 @@ defmodule MomoapiElixir.DisbursementsTest do
 
       # Mock transaction status request
       ClientMock
-      |> expect(:get, fn "/disbursement/v1_0/transfer/" <> ^reference_id, headers ->
+      |> expect(:get, fn "/disbursement/v1_0/transfer/" <> id, headers ->
+        assert id == reference_id
         assert {"Authorization", "Bearer test_token"} in headers
-        assert {"X-Reference-Id", ^reference_id} in headers
+        assert {"X-Reference-Id", reference_id} in headers
         {:ok, %{status_code: 200, body: Poison.encode!(expected_transaction)}}
       end)
 
